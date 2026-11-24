@@ -1,0 +1,20 @@
+{
+  "name": "sheetdot",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces",
+    "dev:worker": "npm run dev --workspace=@sheetdot/worker",
+    "dev:addin": "npm run dev --workspace=@sheetdot/addin"
+  },
+  "devDependencies": {
+    "typescript": ">=5.7.0",
+    "vitest": "^5.1.1"
+  }
+}

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>c8b4f7d2-71c8-4b78-9d2c-94f2e12c8801</Id>
+  <Version>0.1.0.0</Version>
+  <ProviderName>Sheetdot</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Sheetdot" />
+  <Description DefaultValue="Excel-native control plane for 24/7 personal agents (=AI.ASK, =AI.WATCH, overnight Gmail sync)." />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png" />
+  <SupportUrl DefaultValue="https://localhost:3000" />
+
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+    <AppDomain>http://localhost:8787</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Workbook" />
+  </Hosts>
+
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="SharedRuntime" MinVersion="1.1" />
+      <Set Name="CustomFunctionsRuntime" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/index.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <Runtimes>
+          <Runtime resid="Sheetdot.SharedRuntime.Url" lifetime="long" />
+        </Runtimes>
+        <AllFormFactors>
+          <ExtensionPoint xsi:type="CustomFunctions">
+            <Script>
+              <SourceLocation resid="Sheetdot.Functions.Url" />
+            </Script>
+            <Page>
+              <SourceLocation resid="Sheetdot.SharedRuntime.Url" />
+            </Page>
+            <Metadata>
+              <SourceLocation resid="Sheetdot.Metadata.Url" />
+            </Metadata>
+            <Namespace resid="Sheetdot.Namespace" />
+          </ExtensionPoint>
+        </AllFormFactors>
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="Sheetdot.GetStarted.Title" />
+            <Description resid="Sheetdot.GetStarted.Description" />
+            <LearnMoreUrl resid="Sheetdot.GetStarted.LearnMoreUrl" />
+          </GetStarted>
+          <FunctionFile resid="Sheetdot.SharedRuntime.Url" />
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="Sheetdot.Group">
+                <Label resid="Sheetdot.GroupLabel" />
+                <Icon>
+                  <bt:Image size="16" resid="Sheetdot.Icon16" />
+                  <bt:Image size="32" resid="Sheetdot.Icon32" />
+                  <bt:Image size="80" resid="Sheetdot.Icon80" />
+                </Icon>
+                <Control xsi:type="Button" id="Sheetdot.ShowTaskpaneButton">
+                  <Label resid="Sheetdot.TaskpaneButton.Label" />
+                  <Supertip>
+                    <Title resid="Sheetdot.TaskpaneButton.Label" />
+                    <Description resid="Sheetdot.TaskpaneButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Sheetdot.Icon16" />
+                    <bt:Image size="32" resid="Sheetdot.Icon32" />
+                    <bt:Image size="80" resid="Sheetdot.Icon80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>Sheetdot.Taskpane</TaskpaneId>
+                    <SourceLocation resid="Sheetdot.SharedRuntime.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Sheetdot.Icon16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
+        <bt:Image id="Sheetdot.Icon32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
+        <bt:Image id="Sheetdot.Icon64" DefaultValue="https://localhost:3000/assets/icon-64.png" />
+        <bt:Image id="Sheetdot.Icon80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Sheetdot.SharedRuntime.Url" DefaultValue="https://localhost:3000/index.html" />
+        <bt:Url id="Sheetdot.Functions.Url" DefaultValue="https://localhost:3000/functions.js" />
+        <bt:Url id="Sheetdot.Metadata.Url" DefaultValue="https://localhost:3000/functions.json" />
+        <bt:Url id="Sheetdot.GetStarted.LearnMoreUrl" DefaultValue="https://localhost:3000" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Sheetdot.Namespace" DefaultValue="AI" />
+        <bt:String id="Sheetdot.GroupLabel" DefaultValue="Sheetdot" />
+        <bt:String id="Sheetdot.TaskpaneButton.Label" DefaultValue="Sheetdot" />
+        <bt:String id="Sheetdot.GetStarted.Title" DefaultValue="Sheetdot 24/7 Excel Agents" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Sheetdot.TaskpaneButton.Tooltip" DefaultValue="Open the Sheetdot control plane to manage watches, templates, and overnight syncs." />
+        <bt:String id="Sheetdot.GetStarted.Description" DefaultValue="Use =AI.ASK and =AI.WATCH or enable a 24/7 Gmail watch template." />
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

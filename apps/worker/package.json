@@ -1,0 +1,25 @@
+{
+  "name": "@sheetdot/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@composio/core": "^0.31.0",
+    "@sheetdot/shared": "*",
+    "hono": "^4.13.21",
+    "openai": "^7.64.0",
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261124.2",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.168.0"
+  }
+}

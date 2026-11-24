@@ -1,0 +1,54 @@
+{
+  "functions": [
+    {
+      "id": "ASK",
+      "name": "ASK",
+      "description": "Ask Sheetdot AI a question about an Excel cell or range using cached responses.",
+      "parameters": [
+        {
+          "name": "question",
+          "description": "Prompt or question to evaluate against the range",
+          "type": "string"
+        },
+        {
+          "name": "contextRange",
+          "description": "Cell or range providing row/table context",
+          "type": "any",
+          "dimensionality": "matrix"
+        }
+      ],
+      "result": {
+        "type": "string",
+        "dimensionality": "scalar"
+      }
+    },
+    {
+      "id": "WATCH",
+      "name": "WATCH",
+      "description": "Register a recurring Sheetdot watch for a cell/range and return the latest cached answer.",
+      "parameters": [
+        {
+          "name": "question",
+          "description": "Recurring check or question to evaluate on schedule",
+          "type": "string"
+        },
+        {
+          "name": "contextRange",
+          "description": "Cell or range monitored by this watch",
+          "type": "any",
+          "dimensionality": "matrix"
+        },
+        {
+          "name": "schedule",
+          "description": "Cron expression (e.g. 0 8 * * *) or preset (daily, hourly)",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "result": {
+        "type": "string",
+        "dimensionality": "scalar"
+      }
+    }
+  ]
+}

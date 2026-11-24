@@ -1,0 +1,17 @@
+name = "sheetdot-worker"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+MOCK_MODE = "true"
+DEFAULT_TIMEZONE = "Asia/Kolkata"
+OPENAI_MODEL = "gpt-4o-mini"
+
+[[durable_objects.bindings]]
+name = "WORKBOOK_DO"
+class_name = "WorkbookDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WorkbookDurableObject"]
