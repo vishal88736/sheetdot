@@ -85,7 +85,8 @@ function resolveRowMatchKey(
   row: CellMatrixValue[],
   headers: string[],
   headerMap: Map<string, number>,
-  matchKeyColumns: string[]
+  matchKeyColumns: string[],
+  entityAliases?: Record<string, string>
 ): string {
   const idColIdx = headerMap.get(SHEETDOT_ID_COLUMN.toLowerCase());
   if (idColIdx !== undefined) {
@@ -96,7 +97,7 @@ function resolveRowMatchKey(
   }
 
   const record = extractRowRecord(row, headers);
-  const computed = computeMatchKey(record, matchKeyColumns);
+  const computed = computeMatchKey(record, matchKeyColumns, entityAliases);
   return computed.replace(/:/g, "").trim().length > 0 ? computed : "";
 }
 
@@ -136,7 +137,7 @@ function pickCommentColumnIndex(
 export function planWorksheetSync(
   headers: string[],
   existingDataRows: CellMatrixValue[][],
-  watch: Pick<WatchConfig, "id" | "sheetName" | "matchKeyColumns" | "columns">,
+  watch: Pick<WatchConfig, "id" | "sheetName" | "matchKeyColumns" | "columns" | "entityAliases">,
   updates: PendingRowUpdate[]
 ): WorksheetSyncPlan {
   const headerMap = buildHeaderIndexMap(headers);
@@ -150,7 +151,13 @@ export function planWorksheetSync(
   // Index live row positions by deterministic matchKey
   const matchKeyToDataRowIdx = new Map<string, number>();
   workingRows.forEach((row, dataIdx) => {
-    const key = resolveRowMatchKey(row, headers, headerMap, watch.matchKeyColumns);
+    const key = resolveRowMatchKey(
+      row,
+      headers,
+      headerMap,
+      watch.matchKeyColumns,
+      watch.entityAliases
+    );
     if (key) {
       matchKeyToDataRowIdx.set(key, dataIdx);
     }

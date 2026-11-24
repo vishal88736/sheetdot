@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import {
   AskRequestSchema,
+  PdfPasswordHintInputSchema,
+  SmsWebhookPayloadSchema,
   SyncAckRequestSchema,
   WatchCellRequestSchema,
   WatchUpsertSchema,
@@ -17,7 +19,7 @@ app.use(
   "*",
   cors({
     origin: "*",
-    allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
   })
 );
@@ -102,6 +104,14 @@ app.patch("/api/watches/:id", async (c) => {
   });
 });
 
+app.delete("/api/watches/:id", async (c) => {
+  const watchId = c.req.param("id");
+  const workbookId = c.req.query("workbookId") ?? "default-workbook";
+  return forwardToDO(c.env, workbookId, `/watches/${encodeURIComponent(watchId)}`, {
+    method: "DELETE",
+  });
+});
+
 app.post("/api/watches/:id/run-now", async (c) => {
   const watchId = c.req.param("id");
   let workbookId = c.req.query("workbookId");
@@ -119,6 +129,62 @@ app.post("/api/watches/:id/run-now", async (c) => {
     `/watches/${encodeURIComponent(watchId)}/run-now`,
     { method: "POST" }
   );
+});
+
+app.post("/api/alarm/trigger", async (c) => {
+  const workbookId = c.req.query("workbookId") ?? "default-workbook";
+  return forwardToDO(c.env, workbookId, "/alarm/trigger", { method: "POST" });
+});
+
+app.get("/api/vault/pdf-hints", async (c) => {
+  const workbookId = c.req.query("workbookId") ?? "default-workbook";
+  return forwardToDO(c.env, workbookId, "/vault/pdf-hints", { method: "GET" });
+});
+
+app.post("/api/vault/pdf-hints", async (c) => {
+  const raw = await c.req.json();
+  const workbookId =
+    (typeof raw.workbookId === "string" && raw.workbookId) ||
+    c.req.query("workbookId") ||
+    "default-workbook";
+  const parsed = PdfPasswordHintInputSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid PDF password hint", issues: parsed.error.issues }, 400);
+  }
+  return forwardToDO(c.env, workbookId, "/vault/pdf-hints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(parsed.data),
+  });
+});
+
+app.delete("/api/vault/pdf-hints/:id", async (c) => {
+  const hintId = c.req.param("id");
+  const workbookId = c.req.query("workbookId") ?? "default-workbook";
+  return forwardToDO(c.env, workbookId, `/vault/pdf-hints/${encodeURIComponent(hintId)}`, {
+    method: "DELETE",
+  });
+});
+
+app.post("/api/webhooks/sms", async (c) => {
+  const raw = await c.req.json();
+  const parsed = SmsWebhookPayloadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid SMS webhook payload", issues: parsed.error.issues }, 400);
+  }
+  return forwardToDO(c.env, parsed.data.workbookId, "/webhooks/sms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(parsed.data),
+  });
+});
+
+app.post("/api/logs/:id/revert", async (c) => {
+  const logId = c.req.param("id");
+  const workbookId = c.req.query("workbookId") ?? "default-workbook";
+  return forwardToDO(c.env, workbookId, `/logs/${encodeURIComponent(logId)}/revert`, {
+    method: "POST",
+  });
 });
 
 app.get("/api/sync", async (c) => {

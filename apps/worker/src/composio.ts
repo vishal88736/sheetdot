@@ -1,5 +1,6 @@
 import { Composio } from "@composio/core";
-import type { ComposioAuthResponse } from "@sheetdot/shared";
+import type { ComposioAuthResponse, WatchConfig, WatchSourceType } from "@sheetdot/shared";
+import type { EmailAttachment } from "./pdf-vault.js";
 
 export interface GmailMessage {
   messageId: string;
@@ -10,6 +11,8 @@ export interface GmailMessage {
   snippet: string;
   bodyText: string;
   attachmentText?: string;
+  attachments?: EmailAttachment[];
+  sourceType?: WatchSourceType;
 }
 
 export interface FetchMessagesResult {
@@ -48,11 +51,11 @@ const MOCK_GMAIL_MESSAGES: Array<GmailMessage & { tags: string[] }> = [
     subject: "BESCOM Electricity Bill - Nov 2026 (Account 4829103)",
     from: "ebill@bescom.co.in",
     receivedAt: "2026-11-24T18:10:00.000Z",
-    snippet: "Your BESCOM electricity bill for November 2026 is INR 4,850.00. Due 2026-12-05.",
+    snippet: "Your BESCOM electricity bill for November 2026 is INR 4,850.00. Due 2026-11-26.",
     bodyText:
-      "Merchant: BESCOM\nBilling Month: 2026-11\nCategory: Electricity\nAmount: 4850\nCurrency: INR\nDue Date: 2026-12-05\nStatus: Unpaid\nNote: Higher AC/heater usage recorded this cycle.",
+      "Merchant: BESCOM\nBilling Month: 2026-11\nCategory: Electricity\nAmount: 4850\nCurrency: INR\nDue Date: 2026-11-26\nStatus: Unpaid\nNote: Higher AC/heater usage recorded this cycle.",
     attachmentText:
-      "PDF Attachment (BESCOM_Nov2026.pdf): Consumer 4829103 | Billing Period: 2026-11 | Units: 540 kWh | Total Due: INR 4850.00 | Due Date: 2026-12-05 | Status: Unpaid",
+      "PDF Attachment (BESCOM_Nov2026.pdf): Consumer 4829103 | Billing Period: 2026-11 | Units: 540 kWh | Total Due: INR 4850.00 | Due Date: 2026-11-26 | Status: Unpaid",
     tags: ["bill", "invoice", "receipt", "statement", "payment", "electricity", "bescom"],
   },
   {
@@ -76,7 +79,7 @@ const MOCK_GMAIL_MESSAGES: Array<GmailMessage & { tags: string[] }> = [
     receivedAt: "2026-11-24T20:05:00.000Z",
     snippet: "Thank you! We received your UPI payment of INR 1,179.00 for Airtel Nov 2026.",
     bodyText:
-      "Merchant: Airtel\nBilling Month: 2026-11\nCategory: Telecom & Fiber\nAmount: 1179\nCurrency: INR\nDue Date: 2026-11-28\nStatus: Paid\nUPI Ref: 632910448912",
+      "Merchant: Airtel Payments\nBilling Month: 2026-11\nCategory: Telecom & Fiber\nAmount: 1179\nCurrency: INR\nDue Date: 2026-11-28\nStatus: Paid\nUPI Ref: 632910448912",
     tags: ["bill", "invoice", "receipt", "statement", "payment", "airtel", "paid"],
   },
   {
@@ -93,6 +96,26 @@ const MOCK_GMAIL_MESSAGES: Array<GmailMessage & { tags: string[] }> = [
     tags: ["bill", "invoice", "receipt", "statement", "payment", "hdfc", "credit card"],
   },
   {
+    messageId: "msg_bill_sbi_locked_2026_11",
+    threadId: "thr_sbi_11",
+    subject: "SBI Card Monthly e-Statement - Nov 2026 (Password Protected PDF)",
+    from: "statements@sbicard.com",
+    receivedAt: "2026-11-24T23:05:00.000Z",
+    snippet: "Please open the attached password-protected SBI Card PDF statement.",
+    bodyText: "Merchant: SBI Card\nBilling Month: 2026-11\nCategory: Credit Card\nCurrency: INR",
+    attachments: [
+      {
+        filename: "SBI_Nov2026.pdf",
+        mimeType: "application/pdf",
+        requiresPassword: true,
+        expectedPassword: "demo-sbi-password",
+        encryptedText:
+          "Merchant: SBI Card\nBilling Month: 2026-11\nCategory: Credit Card\nAmount: 7640\nCurrency: INR\nDue Date: 2026-12-10\nStatus: Unpaid",
+      },
+    ],
+    tags: ["bill", "invoice", "statement", "sbi", "credit card"],
+  },
+  {
     messageId: "msg_sub_notion_2026_11",
     threadId: "thr_notion_11",
     subject: "Your Notion Plus subscription renewal receipt (Nov 2026)",
@@ -100,7 +123,7 @@ const MOCK_GMAIL_MESSAGES: Array<GmailMessage & { tags: string[] }> = [
     receivedAt: "2026-11-23T06:00:00.000Z",
     snippet: "Invoice for Notion Plus monthly renewal: INR 840 billed for 2026-11.",
     bodyText:
-      "Service: Notion\nPlan: Plus Monthly\nBilling Cycle: 2026-11\nAmount: 840\nCurrency: INR\nRenewal Date: 2026-12-23\nStatus: Active",
+      "Service: Notion\nPlan: Plus Monthly\nBilling Cycle: 2026-11\nAmount: 840\nCurrency: INR\nRenewal Date: 2026-11-26\nStatus: Active",
     tags: ["subscription", "renewal", "recurring", "auto-pay", "membership", "notion"],
   },
   {
@@ -138,6 +161,42 @@ const MOCK_GMAIL_MESSAGES: Array<GmailMessage & { tags: string[] }> = [
   },
 ];
 
+const MOCK_CALENDAR_MESSAGES: GmailMessage[] = [
+  {
+    messageId: "cal_evt_flight_blr_bom",
+    subject: "IndiGo 6E-214 Flight BLR -> BOM",
+    from: "calendar@google.com",
+    receivedAt: "2026-11-25T02:00:00.000Z",
+    snippet: "Upcoming flight on 2026-12-10 at 07:15 AM",
+    bodyText:
+      "Event ID: cal_flight_6e214\nTitle: IndiGo 6E-214 Flight BLR -> BOM\nDate: 2026-12-10\nTime: 07:15\nLocation: Kempegowda Intl Airport T1\nStatus: Confirmed",
+    sourceType: "calendar",
+  },
+  {
+    messageId: "cal_evt_tax_deadline",
+    subject: "Advance Tax Q3 Installment Reminder",
+    from: "calendar@google.com",
+    receivedAt: "2026-11-25T02:05:00.000Z",
+    snippet: "Quarterly advance tax reminder on 2026-12-15",
+    bodyText:
+      "Event ID: cal_tax_q3\nTitle: Advance Tax Q3 Installment\nDate: 2026-12-15\nTime: 10:00\nLocation: Income Tax Portal\nStatus: Scheduled",
+    sourceType: "calendar",
+  },
+];
+
+const MOCK_GITHUB_MESSAGES: GmailMessage[] = [
+  {
+    messageId: "gh_notif_pr_42",
+    subject: "[sheetdot] PR #42: Add PDF vault AES-GCM encryption",
+    from: "notifications@github.com",
+    receivedAt: "2026-11-25T01:30:00.000Z",
+    snippet: "Review requested on vishal88736/sheetdot#42",
+    bodyText:
+      "Item ID: PR-42\nRepo: vishal88736/sheetdot\nTitle: Add PDF vault AES-GCM encryption\nAuthor: vishal88736\nUpdated Date: 2026-11-25\nStatus: Review Requested",
+    sourceType: "github",
+  },
+];
+
 function extractQueryTerms(query: string): string[] {
   return query
     .toLowerCase()
@@ -152,7 +211,10 @@ function toRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function normalizeComposioEmails(rawData: unknown): GmailMessage[] {
+function normalizeComposioEmails(rawData: unknown): {
+  messages: GmailMessage[];
+  nextPageToken?: string;
+} {
   const data = toRecord(rawData);
   const candidates = Array.isArray(rawData)
     ? rawData
@@ -164,7 +226,12 @@ function normalizeComposioEmails(rawData: unknown): GmailMessage[] {
           ? data.items
           : [];
 
-  return candidates
+  const nextPageToken =
+    typeof data.nextPageToken === "string" && data.nextPageToken.trim()
+      ? data.nextPageToken
+      : undefined;
+
+  const messages = candidates
     .map((item, idx): GmailMessage | null => {
       const rec = toRecord(item);
       const messageId = String(rec.messageId ?? rec.id ?? rec.message_id ?? "").trim();
@@ -173,10 +240,13 @@ function normalizeComposioEmails(rawData: unknown): GmailMessage[] {
       }
       const subject = String(rec.subject ?? rec.Subject ?? "(No Subject)");
       const from = String(rec.sender ?? rec.from ?? rec.From ?? "unknown@gmail.com");
-      const receivedAt = String(rec.messageTimestamp ?? rec.receivedAt ?? rec.date ?? new Date().toISOString());
+      const receivedAt = String(
+        rec.messageTimestamp ?? rec.receivedAt ?? rec.date ?? new Date().toISOString()
+      );
       const snippet = String(rec.snippet ?? rec.preview ?? "");
       const bodyText = String(rec.messageText ?? rec.body ?? rec.text ?? snippet);
-      const attachmentText = typeof rec.attachmentText === "string" ? rec.attachmentText : undefined;
+      const attachmentText =
+        typeof rec.attachmentText === "string" ? rec.attachmentText : undefined;
 
       return {
         messageId,
@@ -187,14 +257,79 @@ function normalizeComposioEmails(rawData: unknown): GmailMessage[] {
         snippet,
         bodyText,
         attachmentText,
+        sourceType: "gmail",
+      };
+    })
+    .filter((m): m is GmailMessage => m !== null);
+
+  return { messages, nextPageToken };
+}
+
+function normalizeComposioCalendarEvents(rawData: unknown): GmailMessage[] {
+  const data = toRecord(rawData);
+  const items = Array.isArray(data.items)
+    ? data.items
+    : Array.isArray(rawData)
+      ? rawData
+      : [];
+
+  return items
+    .map((item): GmailMessage | null => {
+      const rec = toRecord(item);
+      const id = String(rec.id ?? "").trim();
+      if (!id) return null;
+      const start = toRecord(rec.start);
+      const startIso = String(start.dateTime ?? start.date ?? new Date().toISOString());
+      const [datePart, timePart] = startIso.split("T");
+      const title = String(rec.summary ?? "(Untitled Event)");
+      const location = String(rec.location ?? "Online");
+      const status = String(rec.status ?? "Confirmed");
+
+      return {
+        messageId: `cal_${id}`,
+        subject: title,
+        from: "calendar@google.com",
+        receivedAt: startIso,
+        snippet: `${title} on ${datePart ?? startIso}`,
+        bodyText: `Event ID: ${id}\nTitle: ${title}\nDate: ${datePart ?? ""}\nTime: ${
+          timePart?.slice(0, 5) ?? "All Day"
+        }\nLocation: ${location}\nStatus: ${status}`,
+        sourceType: "calendar",
       };
     })
     .filter((m): m is GmailMessage => m !== null);
 }
 
-/**
- * Generates or checks a read-only Gmail connection using @composio/core (or mock mode).
- */
+function normalizeComposioGitHubNotifications(rawData: unknown): GmailMessage[] {
+  const items = Array.isArray(rawData) ? rawData : [];
+  return items
+    .map((item): GmailMessage | null => {
+      const rec = toRecord(item);
+      const id = String(rec.id ?? "").trim();
+      if (!id) return null;
+      const subjectObj = toRecord(rec.subject);
+      const repoObj = toRecord(rec.repository);
+      const title = String(subjectObj.title ?? "GitHub Notification");
+      const repo = String(repoObj.full_name ?? "unknown/repo");
+      const updatedAt = String(rec.updated_at ?? new Date().toISOString());
+      const reason = String(rec.reason ?? "subscribed");
+
+      return {
+        messageId: `gh_${id}`,
+        subject: `[${repo}] ${title}`,
+        from: "notifications@github.com",
+        receivedAt: updatedAt,
+        snippet: title,
+        bodyText: `Item ID: ${id}\nRepo: ${repo}\nTitle: ${title}\nAuthor: github\nUpdated Date: ${updatedAt.slice(
+          0,
+          10
+        )}\nStatus: ${reason}`,
+        sourceType: "github",
+      };
+    })
+    .filter((m): m is GmailMessage => m !== null);
+}
+
 export async function getComposioAuthStatus(
   workbookId: string,
   env: ComposioEnv,
@@ -205,7 +340,8 @@ export async function getComposioAuthStatus(
       connected: true,
       authStatus: "connected",
       mode: "mock",
-      message: "Mock Gmail (Read-Only) active with sample Indian bills, subscriptions, and travel emails.",
+      message:
+        "Mock Gmail, Calendar & GitHub (Read-Only) active with sample statements, PDFs, and alerts.",
     };
   }
 
@@ -261,31 +397,48 @@ export async function getComposioAuthStatus(
 }
 
 /**
- * Fetches recent/unread Gmail messages matching `query` in read-only mode.
+ * Fetches incremental read-only items for Gmail, Google Calendar, or GitHub watches.
  */
-export async function fetchGmailMessages(
+export async function fetchWatchSourceMessages(
   workbookId: string,
-  query: string,
-  env: ComposioEnv
+  watch: Pick<WatchConfig, "source" | "composioQuery" | "maxEmailsPerRun">,
+  env: ComposioEnv,
+  afterEpoch?: number
 ): Promise<FetchMessagesResult> {
+  const source = watch.source ?? "gmail";
+  const maxItems = Math.min(watch.maxEmailsPerRun ?? 25, 100);
+
   if (isMockMode(env)) {
-    const terms = extractQueryTerms(query);
+    if (source === "calendar") {
+      return { messages: MOCK_CALENDAR_MESSAGES.slice(0, maxItems), authExpired: false };
+    }
+    if (source === "github") {
+      return { messages: MOCK_GITHUB_MESSAGES.slice(0, maxItems), authExpired: false };
+    }
+
+    const terms = extractQueryTerms(watch.composioQuery);
+    const filteredByEpoch = MOCK_GMAIL_MESSAGES.filter((msg) => {
+      if (!afterEpoch) return true;
+      const msgEpoch = Math.floor(new Date(msg.receivedAt).getTime() / 1000);
+      return Number.isNaN(msgEpoch) || msgEpoch >= afterEpoch;
+    });
+
     if (terms.length === 0) {
       return {
-        messages: MOCK_GMAIL_MESSAGES.map(({ tags: _tags, ...msg }) => msg),
+        messages: filteredByEpoch.slice(0, maxItems).map(({ tags: _tags, ...msg }) => msg),
         authExpired: false,
       };
     }
 
-    const matched = MOCK_GMAIL_MESSAGES.filter((msg) => {
-      const haystack = `${msg.subject} ${msg.bodyText} ${msg.tags.join(" ")}`.toLowerCase();
-      return terms.some((term) => haystack.includes(term));
-    }).map(({ tags: _tags, ...msg }) => msg);
+    const matched = filteredByEpoch
+      .filter((msg) => {
+        const haystack = `${msg.subject} ${msg.bodyText} ${msg.tags.join(" ")}`.toLowerCase();
+        return terms.some((term) => haystack.includes(term));
+      })
+      .slice(0, maxItems)
+      .map(({ tags: _tags, ...msg }) => msg);
 
-    return {
-      messages: matched,
-      authExpired: false,
-    };
+    return { messages: matched, authExpired: false };
   }
 
   if (!env.COMPOSIO_API_KEY) {
@@ -296,52 +449,107 @@ export async function fetchGmailMessages(
     };
   }
 
+  const toolkitSlug =
+    source === "calendar" ? "googlecalendar" : source === "github" ? "github" : "gmail";
+
   try {
     const composio = new Composio({ apiKey: env.COMPOSIO_API_KEY });
     const userId = `workbook_${workbookId}`;
     const accounts = await composio.connectedAccounts.list({
       userIds: [userId],
-      toolkitSlugs: ["gmail"],
+      toolkitSlugs: [toolkitSlug],
     });
     const active = accounts.items.find((acct) => acct.status === "ACTIVE");
     if (!active) {
       return {
         messages: [],
         authExpired: true,
-        errorMessage: "Gmail OAuth connection is missing or expired. Please reconnect.",
+        errorMessage: `${toolkitSlug} OAuth connection is missing or expired. Please reconnect.`,
       };
     }
 
-    const result = await composio.tools.execute("GMAIL_FETCH_EMAILS", {
-      userId,
-      connectedAccountId: active.id,
-      dangerouslySkipVersionCheck: true,
-      arguments: {
-        query,
-        max_results: 15,
-      },
-    });
-
-    if (!result.successful) {
-      const errText = result.error ?? "Failed to execute GMAIL_FETCH_EMAILS";
-      const isAuthIssue = /auth|token|expired|unauthorized|401/i.test(errText);
-      return {
-        messages: [],
-        authExpired: isAuthIssue,
-        errorMessage: errText,
-      };
+    if (source === "calendar") {
+      const result = await composio.tools.execute("GOOGLECALENDAR_EVENTS_LIST", {
+        userId,
+        connectedAccountId: active.id,
+        dangerouslySkipVersionCheck: true,
+        arguments: {
+          q: watch.composioQuery,
+          maxResults: maxItems,
+          timeMin: new Date().toISOString(),
+          singleEvents: true,
+        },
+      });
+      if (!result.successful) {
+        return {
+          messages: [],
+          authExpired: /auth|token|expired|unauthorized|401/i.test(result.error ?? ""),
+          errorMessage: result.error ?? "Failed to fetch calendar events",
+        };
+      }
+      return { messages: normalizeComposioCalendarEvents(result.data), authExpired: false };
     }
 
-    return {
-      messages: normalizeComposioEmails(result.data),
-      authExpired: false,
-    };
+    if (source === "github") {
+      const result = await composio.tools.execute("GITHUB_LIST_NOTIFICATIONS_FOR_AUTHENTICATED_USER", {
+        userId,
+        connectedAccountId: active.id,
+        dangerouslySkipVersionCheck: true,
+        arguments: { per_page: maxItems },
+      });
+      if (!result.successful) {
+        return {
+          messages: [],
+          authExpired: /auth|token|expired|unauthorized|401/i.test(result.error ?? ""),
+          errorMessage: result.error ?? "Failed to fetch GitHub notifications",
+        };
+      }
+      return { messages: normalizeComposioGitHubNotifications(result.data), authExpired: false };
+    }
+
+    // Gmail incremental fetch with pagination
+    const incrementalQuery = afterEpoch
+      ? `(${watch.composioQuery}) after:${afterEpoch}`
+      : watch.composioQuery;
+
+    const collected: GmailMessage[] = [];
+    let pageToken: string | undefined;
+    let pages = 0;
+
+    while (collected.length < maxItems && pages < 5) {
+      pages += 1;
+      const result = await composio.tools.execute("GMAIL_FETCH_EMAILS", {
+        userId,
+        connectedAccountId: active.id,
+        dangerouslySkipVersionCheck: true,
+        arguments: {
+          query: incrementalQuery,
+          max_results: Math.min(25, maxItems - collected.length),
+          ...(pageToken ? { page_token: pageToken } : {}),
+        },
+      });
+
+      if (!result.successful) {
+        const errText = result.error ?? "Failed to execute GMAIL_FETCH_EMAILS";
+        return {
+          messages: [],
+          authExpired: /auth|token|expired|unauthorized|401/i.test(errText),
+          errorMessage: errText,
+        };
+      }
+
+      const normalized = normalizeComposioEmails(result.data);
+      collected.push(...normalized.messages);
+      if (!normalized.nextPageToken) break;
+      pageToken = normalized.nextPageToken;
+    }
+
+    return { messages: collected.slice(0, maxItems), authExpired: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const isAuthIssue = /auth|token|expired|unauthorized|401|connected account/i.test(message);
     return {
       messages: [],
-      authExpired: isAuthIssue,
+      authExpired: /auth|token|expired|unauthorized|401|connected account/i.test(message),
       errorMessage: message,
     };
   }

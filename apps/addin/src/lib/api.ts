@@ -2,6 +2,8 @@ import type {
   AskRequest,
   AskResponse,
   ComposioAuthResponse,
+  PdfPasswordHint,
+  PdfPasswordHintInput,
   SyncAckRequest,
   SyncPayload,
   WatchCellRequest,
@@ -103,6 +105,13 @@ export function toggleWatchEnabled(
   });
 }
 
+export function deleteWatch(workbookId: string, watchId: string): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(
+    `/api/watches/${encodeURIComponent(watchId)}?workbookId=${encodeURIComponent(workbookId)}`,
+    { method: "DELETE" }
+  );
+}
+
 export function runWatchNow(
   workbookId: string,
   watchId: string
@@ -113,6 +122,46 @@ export function runWatchNow(
       method: "POST",
       body: JSON.stringify({ workbookId }),
     }
+  );
+}
+
+export function triggerAllWatchesAlarm(workbookId: string): Promise<{
+  watchesRun: number;
+  pendingUpdates: unknown[];
+}> {
+  return requestJson<{ watchesRun: number; pendingUpdates: unknown[] }>(
+    `/api/alarm/trigger?workbookId=${encodeURIComponent(workbookId)}`,
+    { method: "POST" }
+  );
+}
+
+export function addPdfHint(
+  workbookId: string,
+  hint: PdfPasswordHintInput
+): Promise<PdfPasswordHint> {
+  return requestJson<PdfPasswordHint>("/api/vault/pdf-hints", {
+    method: "POST",
+    body: JSON.stringify({ workbookId, ...hint }),
+  });
+}
+
+export function deletePdfHint(
+  workbookId: string,
+  hintId: string
+): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(
+    `/api/vault/pdf-hints/${encodeURIComponent(hintId)}?workbookId=${encodeURIComponent(workbookId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function revertAgentLog(
+  workbookId: string,
+  logId: string
+): Promise<{ revertedUpdates: number; foundLog: boolean }> {
+  return requestJson<{ revertedUpdates: number; foundLog: boolean }>(
+    `/api/logs/${encodeURIComponent(logId)}/revert?workbookId=${encodeURIComponent(workbookId)}`,
+    { method: "POST" }
   );
 }
 

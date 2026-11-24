@@ -40,12 +40,56 @@ function parseKeyValueLines(text: string): Map<string, string> {
   return map;
 }
 
+function parseBankSmsHeuristic(
+  email: GmailMessage,
+  watch: WatchConfig
+): ExtractedEmailRecord | null {
+  const combined = `${email.bodyText} ${email.snippet}`;
+  const amountMatch = combined.match(/(?:INR|Rs\.?|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+  if (!amountMatch?.[1]) return null;
+
+  const amount = Number(amountMatch[1].replace(/,/g, ""));
+  const merchantMatch = combined.match(/\b(?:at|to|from)\s+([A-Za-z0-9 ._-]{2,28}?)(?=\s+via|\s+on|\.|$)/i);
+  const merchant = merchantMatch?.[1]?.trim() || email.from;
+  const dateMatch = combined.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const txDate = dateMatch?.[1] ?? email.receivedAt.slice(0, 10);
+  const channel = /\bUPI\b/i.test(combined)
+    ? "UPI"
+    : /\bcard\b/i.test(combined)
+      ? "Card"
+      : "Bank";
+  const status = /\bcredited\b/i.test(combined) ? "Credited" : "Debited";
+
+  const values: Record<string, string | number> = {};
+  for (const col of watch.columns) {
+    const norm = col.toLowerCase();
+    if (norm === "merchant") values[col] = merchant;
+    else if (norm === "tx_date" || norm === "date") values[col] = txDate;
+    else if (norm === "channel") values[col] = channel;
+    else if (isNumericColumn(col)) values[col] = amount;
+    else if (norm === "currency") values[col] = "INR";
+    else if (norm === "status") values[col] = status;
+    else values[col] = "";
+  }
+
+  return {
+    matched: true,
+    confidence: "high",
+    confidenceReason: "Extracted from bank/UPI SMS payload",
+    values,
+  };
+}
+
 function mockExtractFromEmail(
   email: GmailMessage,
   watch: WatchConfig
 ): ExtractedEmailRecord | null {
+  if (watch.source === "sms_webhook" || email.sourceType === "sms_webhook") {
+    return parseBankSmsHeuristic(email, watch);
+  }
+
   const combined = `${email.bodyText}\n${email.attachmentText ?? ""}`;
-  const kv = parseKeyValueLines(email.bodyText);
+  const kv = parseKeyValueLines(combined);
 
   const lookupMap: Record<string, string | undefined> = {
     merchant: kv.get("merchant"),
@@ -64,6 +108,15 @@ function mockExtractFromEmail(
     route_or_hotel: kv.get("route_hotel") ?? kv.get("route_or_hotel"),
     travel_date: kv.get("travel_date"),
     departure_time: kv.get("departure_time"),
+    event_id: kv.get("event_id"),
+    title: kv.get("title"),
+    date: kv.get("date"),
+    time: kv.get("time"),
+    location: kv.get("location"),
+    item_id: kv.get("item_id"),
+    repo: kv.get("repo"),
+    author: kv.get("author"),
+    updated_date: kv.get("updated_date"),
   };
 
   const values: Record<string, string | number> = {};
@@ -105,12 +158,18 @@ function mockExtractFromEmail(
     return val === undefined || String(val).trim() === "";
   });
 
+  const missingNumericAmount = watch.columns.some(
+    (col) => isNumericColumn(col) && (values[col] === 0 || values[col] === "")
+  );
+
   return {
     matched: true,
-    confidence: missingKeyCol ? "needs_review" : "high",
+    confidence: missingKeyCol || missingNumericAmount ? "needs_review" : "high",
     confidenceReason: missingKeyCol
       ? "Missing one or more match key fields"
-      : "Extracted cleanly from email and statement text",
+      : missingNumericAmount
+        ? "Missing or zero numeric amount"
+        : "Extracted cleanly from email and statement text",
     values,
   };
 }
@@ -118,9 +177,7 @@ function mockExtractFromEmail(
 function buildRowExtractionJsonSchema(columns: string[]): Record<string, unknown> {
   const properties: Record<string, unknown> = {};
   for (const col of columns) {
-    properties[col] = isNumericColumn(col)
-      ? { type: "number" }
-      : { type: "string" };
+    properties[col] = isNumericColumn(col) ? { type: "number" } : { type: "string" };
   }
 
   return {
@@ -142,7 +199,7 @@ function buildRowExtractionJsonSchema(columns: string[]): Record<string, unknown
 }
 
 /**
- * Extracts structured table values from an email + optional PDF attachment text
+ * Extracts structured table values from an email/event + unlocked attachment text
  * using OpenAI Structured Outputs (or deterministic mock extraction).
  */
 export async function extractRowFromEmail(
@@ -168,11 +225,11 @@ export async function extractRowFromEmail(
       {
         role: "system",
         content: [
-          "You are Sheetdot's structured email parser for an Excel watch table.",
-          `Extract fields for watch "${watch.name}" (template: ${watch.templateId}).`,
+          "You are Sheetdot's structured data parser for an Excel watch table.",
+          `Extract fields for watch "${watch.name}" (source: ${watch.source ?? "gmail"}).`,
           `Target columns: ${watch.columns.join(", ")}.`,
           `Deterministic match key columns: ${watch.matchKeyColumns.join(", ")}.`,
-          "If the email is unrelated to this watch, return matched=false.",
+          "If the item is unrelated to this watch, return matched=false.",
           "Use YYYY-MM format for billing_month/billing_cycle and YYYY-MM-DD for dates when present.",
           "Set confidence='needs_review' if any amount, date, or key identifier is ambiguous.",
         ].join(" "),

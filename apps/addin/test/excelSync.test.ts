@@ -199,6 +199,36 @@ describe("planWorksheetSync (row-safe diff engine)", () => {
     expect(plan.resultingRows).toHaveLength(1);
     expect(plan.resultingRows[0]![6]).toBe("Paid");
   });
+
+  it("matches existing rows via normalized entity aliases (e.g. Airtel Black -> airtel)", () => {
+    const headers = [...BILLS_WATCH.columns, SHEETDOT_ID_COLUMN];
+    const rows: CellMatrixValue[][] = [
+      ["Airtel Black", "2026-11", "Telecom", 1179, "INR", "2026-11-28", "Unpaid", null],
+    ];
+    const updates: PendingRowUpdate[] = [
+      {
+        id: "upd_alias",
+        watchId: BILLS_WATCH.id,
+        action: "update",
+        matchKey: "airtel::2026-11",
+        values: {
+          merchant: "Airtel Payments",
+          billing_month: "2026-11",
+          status: "Paid",
+        },
+        sourceComment: "payments@airtel.in",
+        confidence: "high",
+        emailMessageId: "msg_alias",
+        createdAt: "2026-11-25T02:00:00.000Z",
+      },
+    ];
+
+    const plan = planWorksheetSync(headers, rows, BILLS_WATCH, updates);
+    expect(plan.rowsAdded).toBe(0);
+    expect(plan.rowsUpdated).toBe(1);
+    expect(plan.resultingRows).toHaveLength(1);
+    expect(plan.resultingRows[0]![6]).toBe("Paid");
+  });
 });
 
 describe("Excel.run sync integration & custom functions", () => {

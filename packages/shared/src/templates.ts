@@ -1,4 +1,4 @@
-import type { WatchConfig, WatchTemplate } from "./types.js";
+import type { WatchConfig, WatchSourceType, WatchTemplate } from "./types.js";
 
 export const BUILT_IN_TEMPLATES: WatchTemplate[] = [
   {
@@ -69,6 +69,50 @@ export const TEMPLATES_BY_ID: Record<WatchTemplate["id"], WatchTemplate> = {
   travel: BUILT_IN_TEMPLATES[2]!,
 };
 
+export interface ConnectorPreset {
+  source: Exclude<WatchSourceType, "cell_watch">;
+  label: string;
+  defaultQuery: string;
+  defaultSheetName: string;
+  defaultColumns: string[];
+  defaultMatchKeys: string[];
+}
+
+export const CONNECTOR_PRESETS: Record<ConnectorPreset["source"], ConnectorPreset> = {
+  gmail: {
+    source: "gmail",
+    label: "Gmail (Read-Only)",
+    defaultQuery: "bill OR invoice OR receipt",
+    defaultSheetName: "InboxWatch",
+    defaultColumns: ["merchant", "billing_month", "category", "amount", "due_date", "status"],
+    defaultMatchKeys: ["merchant", "billing_month"],
+  },
+  calendar: {
+    source: "calendar",
+    label: "Google Calendar (Read-Only)",
+    defaultQuery: "flight OR renewal OR deadline OR meeting",
+    defaultSheetName: "CalendarBrief",
+    defaultColumns: ["event_id", "title", "date", "time", "location", "status"],
+    defaultMatchKeys: ["event_id", "date"],
+  },
+  github: {
+    source: "github",
+    label: "GitHub (Read-Only)",
+    defaultQuery: "is:open review-requested OR assigned",
+    defaultSheetName: "GitHubTriage",
+    defaultColumns: ["item_id", "repo", "title", "author", "updated_date", "status"],
+    defaultMatchKeys: ["item_id", "repo"],
+  },
+  sms_webhook: {
+    source: "sms_webhook",
+    label: "Bank SMS / WhatsApp Forwarder",
+    defaultQuery: "debited OR credited OR UPI OR card",
+    defaultSheetName: "SmsLedger",
+    defaultColumns: ["merchant", "tx_date", "channel", "amount", "currency", "status"],
+    defaultMatchKeys: ["merchant", "tx_date"],
+  },
+};
+
 export function createWatchFromTemplate(
   templateId: WatchTemplate["id"],
   workbookId: string,
@@ -79,12 +123,15 @@ export function createWatchFromTemplate(
     workbookId,
     name: template.name,
     templateId: template.id,
+    source: "gmail",
     sheetName: template.sheetName,
     scheduleCron: template.scheduleCron,
     composioQuery: template.composioQuery,
     matchKeyColumns: [...template.matchKeyColumns],
     columns: [...template.columns],
     anomalyThresholdPct: template.anomalyThresholdPct,
+    maxEmailsPerRun: 25,
+    maxConsecutiveErrors: 3,
     enabled: true,
     ...overrides,
   };
