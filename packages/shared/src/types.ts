@@ -134,6 +134,7 @@ export interface SyncPayload {
   lastCheckedAt?: string;
   latestDigest?: DigestSummary;
   pdfHints?: PdfPasswordHint[];
+  userProfile?: AuthUserProfile;
 }
 
 export interface SyncAckRequest {
@@ -147,6 +148,27 @@ export interface ComposioAuthResponse {
   redirectUrl?: string;
   mode: "mock" | "composio";
   message: string;
+}
+
+export interface AuthUserProfile {
+  id: string;
+  email: string;
+  name: string;
+  initials: string;
+  avatarUrl?: string;
+}
+
+export interface AuthSession {
+  user: AuthUserProfile;
+  token: string;
+  authStatus: ConnectionAuthStatus;
+  mode: "mock" | "google";
+}
+
+export interface GoogleAuthStartResponse {
+  mode: "mock" | "google";
+  authUrl: string;
+  mockSession?: AuthSession;
 }
 
 export interface WatchTemplate {

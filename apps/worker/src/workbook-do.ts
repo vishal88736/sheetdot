@@ -5,6 +5,7 @@ import {
   type AgentLogEntry,
   type AskRequest,
   type AskResponse,
+  type AuthUserProfile,
   type ComposioAuthResponse,
   type ConnectionAuthStatus,
   type DigestSummary,
@@ -1143,6 +1144,8 @@ export class WorkbookEngine {
 
     const rawDigest = this.getMeta("latestDigest");
     const latestDigest = rawDigest ? (JSON.parse(rawDigest) as DigestSummary) : undefined;
+    const rawUserProfile = this.getMeta("userProfile");
+    const userProfile = rawUserProfile ? (JSON.parse(rawUserProfile) as AuthUserProfile) : undefined;
 
     return {
       workbookId,
@@ -1154,7 +1157,12 @@ export class WorkbookEngine {
       lastCheckedAt: this.getMeta("lastCheckedAt"),
       latestDigest,
       pdfHints: this.listPdfHints(),
+      userProfile,
     };
+  }
+
+  setUserProfile(profile: AuthUserProfile): void {
+    this.setMeta("userProfile", JSON.stringify(profile));
   }
 
   ackSync(updateIds: string[]): { acknowledged: number } {
@@ -1283,6 +1291,12 @@ export class WorkbookDurableObject extends DurableObject<WorkerEnv> {
       if (url.pathname === "/sync" && method === "GET") {
         const workbookId = url.searchParams.get("workbookId") ?? "default-workbook";
         return Response.json(await this.engine.getSyncPayload(workbookId));
+      }
+
+      if (url.pathname === "/auth/profile" && method === "POST") {
+        const body = (await request.json()) as AuthUserProfile;
+        this.engine.setUserProfile(body);
+        return Response.json({ ok: true });
       }
 
       if (url.pathname === "/sync/ack" && method === "POST") {

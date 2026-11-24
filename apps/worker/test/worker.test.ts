@@ -1,6 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import { createWatchFromTemplate } from "@sheetdot/shared";
+import { signSessionToken, verifySessionToken } from "../src/auth.js";
+import app from "../src/index.js";
 import { WorkbookEngine, type AlarmScheduler, type SqlRunner } from "../src/workbook-do.js";
 
 function createTestEngine(overrides?: { MOCK_MODE?: string }) {
@@ -242,5 +244,113 @@ describe("WorkbookEngine (Multi-Agent Overnight Control Plane)", () => {
     expect(paused?.enabled).toBe(false);
     expect(paused?.consecutiveErrors).toBe(2);
     expect(paused?.autoPausedReason).toContain("Auto-paused");
+  });
+
+  it("serves Google Sign-In start & Office messageParent callback HTML", async () => {
+    const seenAuthProfiles: string[] = [];
+    const fakeEnv = {
+      MOCK_MODE: "true",
+      VAULT_SECRET: "secret-1",
+      WORKBOOK_DO: {
+        idFromName: (name: string) => name,
+        get: (id: string) => ({
+          fetch: async (_url: string, init?: RequestInit) => {
+            seenAuthProfiles.push(`${id}:${String(init?.body ?? "")}`);
+            return Response.json({ ok: true });
+          },
+        }),
+      },
+    };
+
+    const startRes = await app.request(
+      "http://localhost:8787/api/auth/google/start?workbookId=main&returnOrigin=http://localhost:3000",
+      { method: "GET" },
+      fakeEnv as never
+    );
+    expect(startRes.status).toBe(200);
+    const startJson = (await startRes.json()) as {
+      mode: string;
+      authUrl: string;
+      mockSession?: { user: { email: string } };
+    };
+    expect(startJson.mode).toBe("mock");
+    expect(startJson.mockSession?.user.email).toBe("vishal@gmail.com");
+    expect(seenAuthProfiles[0]).toContain("google_vishal_gmail_com__main");
+
+    const callbackRes = await app.request(
+      "http://localhost:8787/api/auth/callback?returnOrigin=http://localhost:3000&email=test@gmail.com&name=Test+User",
+      { method: "GET" },
+      fakeEnv as never
+    );
+    expect(callbackRes.status).toBe(200);
+    const html = await callbackRes.text();
+    expect(html).toContain("Office.context.ui.messageParent");
+    expect(html).toContain("test@gmail.com");
+  });
+
+  it("issues and verifies HMAC session tokens and isolates DO namespaces per Google account", async () => {
+    const tokenA = await signSessionToken(
+      {
+        id: "google_vishal_gmail_com",
+        email: "vishal@gmail.com",
+        name: "Vishal Agrawal",
+        initials: "VA",
+      },
+      "secret-1"
+    );
+    const verifiedA = await verifySessionToken(tokenA, "secret-1");
+    expect(verifiedA?.email).toBe("vishal@gmail.com");
+    expect(await verifySessionToken(tokenA, "wrong-secret")).toBeNull();
+
+    // Tampered token rejected with 401
+    const unauthRes = await app.request(
+      "http://localhost:8787/api/auth/me",
+      { headers: { Authorization: "Bearer invalid.token" } },
+      { VAULT_SECRET: "secret-1" } as never
+    );
+    expect(unauthRes.status).toBe(401);
+
+    // Captures Durable Object idFromName calls for two different Google users
+    const seenIds: string[] = [];
+    const fakeEnv = {
+      MOCK_MODE: "true",
+      VAULT_SECRET: "secret-1",
+      WORKBOOK_DO: {
+        idFromName(name: string) {
+          seenIds.push(name);
+          return name;
+        },
+        get() {
+          return {
+            fetch: async () => Response.json({ watches: [] }),
+          };
+        },
+      },
+    };
+
+    const tokenB = await signSessionToken(
+      {
+        id: "google_alex_gmail_com",
+        email: "alex@gmail.com",
+        name: "Alex Rivera",
+        initials: "AR",
+      },
+      "secret-1"
+    );
+
+    // Even if both pass workbookId=main (or try to pass another user's ID), DO stays strictly isolated!
+    await app.request(
+      "http://localhost:8787/api/watches?workbookId=main",
+      { headers: { Authorization: `Bearer ${tokenA}` } },
+      fakeEnv as never
+    );
+    await app.request(
+      "http://localhost:8787/api/watches?workbookId=google_vishal_gmail_com__main",
+      { headers: { Authorization: `Bearer ${tokenB}` } },
+      fakeEnv as never
+    );
+
+    expect(seenIds[0]).toBe("google_vishal_gmail_com__main");
+    expect(seenIds[1]).toBe("google_alex_gmail_com__main");
   });
 });

@@ -12,6 +12,7 @@ import {
   type CellMatrixValue,
 } from "../src/sync/excelSync.js";
 import { ask, watch } from "../src/functions/functions.js";
+import { getOrCreateWorkbookId, signInWithGoogle } from "../src/lib/api.js";
 
 const BILLS_WATCH: WatchConfig = {
   id: "watch_bills",
@@ -424,5 +425,67 @@ describe("Excel.run sync integration & custom functions", () => {
     expect(askRes).toBe("6,029");
     expect(watchRes).toBe("6,029");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses Office displayDialogAsync + messageParent for Google Sign-In inside Excel and scopes workbookId", async () => {
+    const mockSession = {
+      user: {
+        id: "google_vishal_demo",
+        email: "vishal@gmail.com",
+        name: "Vishal Agrawal",
+        initials: "VA",
+      },
+      token: "tok_123",
+      authStatus: "connected",
+      mode: "google",
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          mode: "google",
+          authUrl: "http://localhost:8787/api/auth/callback?mock=1",
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const dialogClose = vi.fn();
+    let messageHandler: ((arg: { message?: string }) => void) | undefined;
+
+    vi.stubGlobal("Office", {
+      AsyncResultStatus: { Succeeded: "succeeded" },
+      EventType: { DialogMessageReceived: "dialogMessageReceived", DialogEventReceived: "dialogEventReceived" },
+      context: {
+        ui: {
+          displayDialogAsync: (
+            _url: string,
+            _opts: unknown,
+            cb: (res: { status: string; value: unknown }) => void
+          ) => {
+            cb({
+              status: "succeeded",
+              value: {
+                close: dialogClose,
+                addEventHandler: (type: string, handler: (arg: { message?: string }) => void) => {
+                  if (type === "dialogMessageReceived") {
+                    messageHandler = handler;
+                  }
+                },
+              },
+            });
+            queueMicrotask(() => {
+              messageHandler?.({ message: JSON.stringify({ type: "sheetdot_auth", session: mockSession }) });
+            });
+          },
+        },
+      },
+    });
+
+    const session = await signInWithGoogle("wb-demo");
+    expect(dialogClose).toHaveBeenCalledTimes(1);
+    expect(session.user.email).toBe("vishal@gmail.com");
+    expect(getOrCreateWorkbookId(session.user.id)).toBe("google_vishal_demo__main");
   });
 });

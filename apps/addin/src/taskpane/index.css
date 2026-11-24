@@ -5,8 +5,8 @@
   body,
   #root {
     min-height: 100%;
-    background-color: #ffffff;
-    color: #111827;
-    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", Roboto, sans-serif;
+    background-color: #faf7f0;
+    color: #14182c;
+    font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   }
 }
